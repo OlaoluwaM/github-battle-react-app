@@ -1,5 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   context: __dirname + '/app',
@@ -10,7 +11,10 @@ module.exports = {
       { test: /\.css$/, use: ['style-loader', 'css-loader'] }
     ]
   },
-  plugins: [new HtmlWebpackPlugin({ template: 'index.html' })],
+  plugins: [
+    new HtmlWebpackPlugin({ template: 'index.html' }),
+    new CopyWebpackPlugin([{ from: '../_redirects' }])
+  ],
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
