@@ -79,66 +79,93 @@ RepoGrid.protoTypes = {
   repos: PropTypes.array.isRequired
 };
 
-export default class PopularGrid extends React.Component {
-  state = {
+function languageReducer(state, action) {
+  switch (action.type) {
+    case 'Set Language':
+      return {
+        chosenLanguage: action.language,
+        repos: state.repos,
+        error: null
+      };
+    case 'Fetch Language':
+      return {
+        chosenLanguage: state.chosenLanguage,
+        repos: { ...state.repos, ...action.repos },
+        error: null
+      };
+    case 'Reset':
+      return {
+        chosenLanguage: null,
+        repos: state.repos,
+        error: null
+      };
+    case 'Error':
+      return {
+        chosenLanguage: null,
+        repos: state.repos,
+        error: action.error
+      };
+    default:
+      throw new Error('Action is not recognized');
+  }
+}
+
+export default function PopularGrid() {
+  const [state, dispatch] = React.useReducer(languageReducer, {
     chosenLanguage: 'All',
     repos: {},
     error: null
-  };
-  componentDidMount() {
-    this.pickLanguage(this.state.chosenLanguage);
-  }
-  pickLanguage = (language) => {
-    this.setState({
-      chosenLanguage: language,
-      error: null
-    });
+  });
 
-    if (this.state.repos[language]) return;
+  const { chosenLanguage, repos, error } = state;
+
+  const pickLanguage = (language) => {
+    dispatch({ type: 'Set Language', language });
+
+    if (repos[language]) return;
 
     fetchPopularRepos(language)
+      .then((data) =>
+        data.map((data, ind) => ({
+          id: data.id,
+          url: data.html_url,
+          login: data.owner.login,
+          name: data.name,
+          avatar: data.owner.avatar_url,
+          forks: data.forks,
+          issues: data.open_issues,
+          stars: data.stargazers_count,
+          index: ind + 1
+        }))
+      )
       .then((data) => {
-        this.setState(
-          ({ repos }) =>
-            (repos[language] = data.map((data, ind) => ({
-              id: data.id,
-              url: data.html_url,
-              login: data.owner.login,
-              name: data.name,
-              avatar: data.owner.avatar_url,
-              forks: data.forks,
-              issues: data.open_issues,
-              stars: data.stargazers_count,
-              index: ind + 1
-            })))
-        );
+        dispatch({
+          type: 'Fetch Language',
+          repos: { [language]: data }
+        });
       })
       .catch((err) => {
-        console.warn('There was an error ' + err);
-
-        this.setState({
-          error: 'There was an error while fetching the repositories'
-        });
+        console.warn(err);
+        dispatch({ type: 'Error', error: 'Data unavailable' });
       });
   };
-  isLoading = () => {
-    const { error, repos, chosenLanguage } = this.state;
+
+  React.useEffect(() => {
+    pickLanguage(chosenLanguage);
+  }, []);
+
+  const isLoading = () => {
     return !repos[chosenLanguage] && error === null;
   };
-  render() {
-    const { chosenLanguage, repos, error } = this.state;
-    return (
-      <React.Fragment>
-        <Popular
-          chosenLanguage={chosenLanguage}
-          pickLanguage={this.pickLanguage}
-        />
-        {this.isLoading() && <Loading text='Fetching Repos' />}
 
-        {error && <p className='center-text error'>{error}</p>}
+  return (
+    <React.Fragment>
+      <Popular chosenLanguage={chosenLanguage} pickLanguage={pickLanguage} />
+      {isLoading() && <Loading text='Fetching Repos' />}
 
-        {repos[chosenLanguage] && <RepoGrid repos={repos[chosenLanguage]} />}
-      </React.Fragment>
-    );
-  }
+      {error && <p className='center-text error'>{error}</p>}
+
+      {repos[chosenLanguage] && <RepoGrid repos={repos[chosenLanguage]} />}
+    </React.Fragment>
+  );
 }

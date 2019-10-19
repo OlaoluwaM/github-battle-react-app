@@ -12,35 +12,32 @@ const styles = {
   }
 };
 
-export default class Loading extends React.Component {
-  static propTypes = {
-    text: PropTypes.string.isRequired,
-    speed: PropTypes.number.isRequired
-  };
-  static defaultProps = {
-    text: 'Loading',
-    speed: 250
-  };
-  state = {
-    message: this.props.text
-  };
-  componentDidMount() {
-    const { text, speed } = this.props;
-    this.interval = setInterval(() => {
-      this.state.message === text + '...'
-        ? this.setState({
-            message: text
-          })
-        : this.setState(({ message }) => ({
-            message: message + '.'
-          }));
+export default function Loading({ text, speed }) {
+  const [count, setCount] = React.useState('');
+  let interval = React.useRef(null);
+
+  let memoizedCount = React.useMemo(() => count, [count]);
+
+  React.useEffect(() => {
+    interval.current = setInterval(() => {
+      if (memoizedCount.length >= 3) {
+        setCount('');
+      } else {
+        setCount((c) => c + '.');
+      }
     }, speed);
-  }
-  componentWillUnmount() {
-    clearInterval(this.interval);
-  }
-  render() {
-    const { message } = this.state;
-    return <p style={styles.message}>{message}</p>;
-  }
+    return () => clearInterval(interval.current);
+  }, [count]);
+
+  return <p style={styles.message}>{`${text}${count}`}</p>;
 }
+
+Loading.propTypes = {
+  text: PropTypes.string.isRequired,
+  speed: PropTypes.number.isRequired
+};
+
+Loading.defaultProps = {
+  text: 'Loading',
+  speed: 300
+};

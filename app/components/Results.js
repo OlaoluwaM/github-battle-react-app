@@ -76,59 +76,72 @@ ProfileList.propTypes = {
   player: PropTypes.object.isRequired
 };
 
-export default class Results extends React.Component {
-  state = {
+function resultReducer(state, action) {
+  switch (action.type) {
+    case 'Success':
+      return {
+        winner: action.players[0],
+        loser: action.players[1],
+        error: null,
+        loading: false
+      };
+    case 'Error':
+      return {
+        winner: null,
+        loser: null,
+        loading: false,
+        error: 'Could not battle players'
+      };
+    default:
+      throw new Error('Action is not recognized');
+  }
+}
+
+export default function Results(props) {
+  const [state, dispatch] = React.useReducer(resultReducer, {
     winner: null,
     loser: null,
     error: null,
     loading: true
-  };
-  componentDidMount() {
-    console.log(this.props);
-    const { location } = this.props;
+  });
+
+  const { winner, loser, error, loading } = state;
+
+  React.useEffect(() => {
+    const { location } = props;
     const { playerOne, playerTwo } = queryString.parse(location.search);
     const players = [playerOne, playerTwo];
     battle(players)
-      .then((players) => {
-        this.setState({
-          winner: players[0],
-          loser: players[1],
-          error: null,
-          loading: false
-        });
-      })
+      .then((players) => dispatch({ type: 'Success', players }))
       .catch(({ message }) => {
         console.warn(message);
-        this.setState({
-          error: message,
-          loading: false
-        });
+        dispatch({ type: 'Error' });
       });
+  }, []);
+
+  if (loading) {
+    return <Loading text='Battling' />;
   }
-  render() {
-    const { winner, loser, error, loading } = this.state;
-    if (loading) {
-      return <Loading text='Battling' />;
-    }
-    if (error) {
-      return <p className='center-text error'>{error}</p>;
-    }
-    return (
-      <React.Fragment>
-        <div className='grid space-around container-sm'>
-          <ProfilePreview
-            position={winner.score === loser.score ? 'Tie' : 'Winner'}
-            player={winner}
-          />
-          <ProfilePreview
-            position={winner.score === loser.score ? 'Tie' : 'Loser'}
-            player={loser}
-          />
-        </div>
-        <Link to='/battle' className='btn dark-btn btn-space'>
-          Reset
-        </Link>
-      </React.Fragment>
-    );
+
+  if (error) {
+    return <p className='center-text error'>{error}</p>;
   }
+
+  return (
+    <React.Fragment>
+      <div className='grid space-around container-sm'>
+        <ProfilePreview
+          position={winner.score === loser.score ? 'Tie' : 'Winner'}
+          player={winner}
+        />
+        <ProfilePreview
+          position={winner.score === loser.score ? 'Tie' : 'Loser'}
+          player={loser}
+        />
+      </div>
+      <Link to='/battle' className='btn dark-btn btn-space'>
+        Reset
+      </Link>
+    </React.Fragment>
+  );
 }
